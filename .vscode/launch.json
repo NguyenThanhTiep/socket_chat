@@ -1,0 +1,14 @@
+{
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Spring Boot-SimplechatApplication<simplechat>",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "mainClass": "com.oopsw.simplechat.SimplechatApplication",
+      "projectName": "simplechat",
+      "args": "",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ]
+}

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Chat Pro</title>
+
+    <!-- Thẻ này giúp hiển thị chuẩn trên điện thoại -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Poppins, Arial;
+            background: #1c1f22;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: white;
+            margin: 0;
+        }
+
+        .chat-container {
+            /* [SỬA] Đổi width cố định thành linh hoạt */
+            width: 100%;
+            max-width: 420px; 
+            height: 80vh; /* Chiều cao cố định trên Desktop */
+            background: #2b2f33;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* [THÊM] CSS cho điện thoại */
+        @media (max-width: 480px) {
+            .chat-container {
+                height: 100vh; /* Full màn hình trên điện thoại */
+                max-width: 100%;
+                border-radius: 0;
+                padding: 10px;
+            }
+        }
+
+        .title {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        #messageArea {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            /* [SỬA] Để khung chat tự co giãn chiếm hết khoảng trống */
+            flex-grow: 1; 
+            overflow-y: auto;
+            scrollbar-width: thin;
+            padding-right: 5px;
+        }
+
+        #messageArea::-webkit-scrollbar { width: 6px; }
+        #messageArea::-webkit-scrollbar-thumb { background: #555; border-radius: 10px; }
+        #messageArea::-webkit-scrollbar-track { background: #2b2f33; }
+
+        #messageArea li {
+            list-style: none;
+            max-width: 75%;
+            padding: 8px 12px;
+            border-radius: 14px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .my-message {
+            background: #006eff;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .other-message {
+            background: #3a3f45;
+            color: #ddd;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        /* Tên người gửi tin nhắn khác */
+        .sender-name {
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        .join, .leave {
+            text-align: center;
+            font-size: 12px;
+            align-self: center; /* Căn giữa khung chat */
+            max-width: 100% !important;
+            background: transparent !important;
+            padding: 2px !important;
+        }
+        .join { color: #28c76f; }
+        .leave { color: #ff9f43; }
+
+        .input-row {
+            display: flex;
+            margin-top: 10px;
+            flex-shrink: 0;
+        }
+        input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 20px;
+            border: 1px solid #444;
+            outline: none;
+            background: #3b4047;
+            color: white;
+            font-size: 14px;
+        }
+        input:focus { border-color: #006eff; }
+        button {
+            margin-left: 8px;
+            padding: 0 20px;
+            border-radius: 20px;
+            background: #006eff;
+            border: none;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover { background: #0056cb; }
+        
+        #username-page { text-align: center; margin-top: 50%; transform: translateY(-50%); }
+        #chat-page { display: none; height: 100%; flex-direction: column; }
+    </style>
+</head>
+
+<body>
+
+<div class="chat-container">
+    <div id="username-page">
+        <div class="title">Nhập tên để Chat</div>
+        <input type="text" id="name" placeholder="Tên của bạn..." style="width: 70%; margin-bottom: 10px;">
+        <br>
+        <button onclick="connect()" style="width: 50%; padding: 10px;">Vào ngay</button>
+    </div>
+
+    <div id="chat-page">
+        <div class="title">Phòng Chat Chung 🌐</div>
+        <ul id="messageArea"></ul>
+
+        <div class="input-row">
+            <input type="text" id="message" placeholder="Nhập tin nhắn..." autocomplete="off"
+                onkeypress="if(event.key==='Enter') sendMessage()">
+            <button onclick="sendMessage()">➤</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    var stompClient = null;
+    var username = null;
+
+    function connect() {
+        username = document.getElementById("name").value.trim();
+        if (!username) return;
+
+        var socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function () {
+            document.getElementById("username-page").style.display="none";
+            // Sử dụng flex để giữ bố cục chuẩn
+            document.getElementById("chat-page").style.display="flex"; 
+
+            // 1. Đăng ký nhận tin mới
+            stompClient.subscribe("/topic/public",
+                (payload)=> showMessage(JSON.parse(payload.body))
+            );
+
+            // 2. [MỚI] Tải lịch sử tin nhắn cũ
+            loadHistory();
+
+            // 3. Gửi thông báo JOIN
+            stompClient.send("/app/chat.addUser", {}, 
+                JSON.stringify({ sender: username, type: "JOIN" })
+            );
+        }, onError);
+    }
+
+    // Hàm tải lịch sử (Gọi API Backend)
+    function loadHistory() {
+        fetch('/api/chat/history')
+            .then(response => {
+                if(!response.ok) throw new Error("Chưa có API history");
+                return response.json();
+            })
+            .then(messages => {
+                messages.forEach(msg => showMessage(msg));
+            })
+            .catch(error => console.log("Lỗi tải history (có thể do chưa code Backend):", error));
+    }
+
+    function sendMessage() {
+        var msgInput = document.getElementById("message");
+        var msgContent = msgInput.value.trim();
+        
+        if(msgContent && stompClient) {
+            var chatMessage = {
+                sender: username,
+                content: msgContent,
+                type: 'CHAT'
+            };
+            stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+            msgInput.value = "";
+        }
+    }
+
+    function showMessage(message) {
+        var area = document.getElementById("messageArea");
+        var li = document.createElement("li");
+
+        if(message.type === "JOIN") {
+            li.className="join";
+            li.textContent = message.sender + " đã tham gia phòng chat";
+        }
+        else if(message.type === "LEAVE") {
+            li.className="leave";
+            li.textContent = message.sender + " đã rời phòng";
+        }
+        else {
+            // Tin nhắn Chat
+            if (message.sender === username) {
+                li.className = "my-message";
+                li.innerHTML = `${message.content}`;
+            } else {
+                li.className = "other-message";
+                // Hiện thêm tên người gửi nếu là người khác
+                li.innerHTML = `<span class="sender-name">${message.sender}</span>${message.content}`;
+            }
+        }
+
+        area.appendChild(li);
+        // Tự động cuộn xuống cuối cùng
+        area.scrollTop = area.scrollHeight;
+    }
+
+    function onError(error) {
+        alert("Không thể kết nối đến Server! Vui lòng kiểm tra lại mạng.");
+    }
+</script>
+
+</body>
+</html>

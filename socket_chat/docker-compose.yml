@@ -1,0 +1,27 @@
+version: "3.8"
+services:
+  mysqldb:
+    image: mysql:8.0
+    container_name: mysqldb
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=simplechat # Tự tạo DB tên này lúc khởi động
+    ports:
+      - "3307:3306" # Map ra ngoài cổng 3307 để tránh đụng MySQL có sẵn trên máy
+    volumes:
+      - db_data:/var/lib/mysql
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysqldb
+    environment:
+      # Lưu ý: host là 'mysqldb' (tên service), không phải localhost
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysqldb:3306/simplechat?useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+
+volumes:
+  db_data:

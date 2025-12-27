@@ -1,2 +1,1 @@
-# socket_chat
-Ứng dụng trò chuyện đa người dùng
+SimpleChat with Java Spring boot
