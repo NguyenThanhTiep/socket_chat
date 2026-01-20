@@ -32,15 +32,5 @@ public class ChatController {
 
     // ✅ FIX: thêm mapping + sendTo để JOIN chạy và lưu username vào session
     @MessageMapping("/chat.addUser")
-    @SendTo("/topic/public")
-    public ChatMessage addUser(@Payload ChatMessage chatMessage, SimpMessageHeaderAccessor headerAccessor) {
-        headerAccessor.getSessionAttributes().put("username", chatMessage.getSender());
-        return chatMessage;
-    }
-
-    @GetMapping("/api/chat/history")
-    @ResponseBody
-    public List<ChatMessage> getHistory() {
-        return chatRepository.findAll();
-    }
+    
 }
