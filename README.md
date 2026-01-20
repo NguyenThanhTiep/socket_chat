@@ -1,1 +1,1 @@
-SimpleChat with Java Spring boot
+Chat with Java Spring boot

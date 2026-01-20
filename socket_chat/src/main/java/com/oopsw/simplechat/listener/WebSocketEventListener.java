@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 
-@Component // Phải có cái này Spring mới nhận diện được
+@Component
 public class WebSocketEventListener {
 
     @Autowired
