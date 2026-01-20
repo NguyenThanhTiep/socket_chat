@@ -21,6 +21,10 @@ public class TcpMultiClientChatServer implements ManagedServer {
     private ServerSocket serverSocket;
     private ExecutorService pool;
 
+<<<<<<< HEAD
+=======
+    // Lưu client outputs để broadcast
+>>>>>>> e8e63bd0b92d66e969dc68d823e4ae743b0a2ceb
     private final Set<ClientConn> clients = ConcurrentHashMap.newKeySet();
 
     @Override
