@@ -174,7 +174,8 @@
         username = document.getElementById("name").value.trim();
         if (!username) return;
 
-        var socket = new SockJS('/ws');
+        var socket = new SockJS(window.location.origin + '/ws');
+
         stompClient = Stomp.over(socket);
 
         stompClient.connect({}, function () {

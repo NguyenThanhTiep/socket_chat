@@ -16,7 +16,8 @@ import com.oopsw.simplechat.repository.ChatRepository;
 
 @Controller
 public class ChatController {
-  @Autowired 
+
+    @Autowired
     private ChatRepository chatRepository;
 
     @MessageMapping("/chat.sendMessage")
@@ -24,17 +25,22 @@ public class ChatController {
     public ChatMessage sendMessage(@Payload ChatMessage chatMessage) {
         // 1. Lưu vào MySQL trước
         chatRepository.save(chatMessage);
-        
+
         // 2. Rồi mới gửi cho mọi người
         return chatMessage;
     }
-  public ChatMessage addUser(@Payload ChatMessage chatMessage, SimpMessageHeaderAccessor headerAccessor){
-    headerAccessor.getSessionAttributes().put("username", chatMessage.getSender());
-    return chatMessage;
-  }
-  @GetMapping("/api/chat/history")
+
+    // ✅ FIX: thêm mapping + sendTo để JOIN chạy và lưu username vào session
+    @MessageMapping("/chat.addUser")
+    @SendTo("/topic/public")
+    public ChatMessage addUser(@Payload ChatMessage chatMessage, SimpMessageHeaderAccessor headerAccessor) {
+        headerAccessor.getSessionAttributes().put("username", chatMessage.getSender());
+        return chatMessage;
+    }
+
+    @GetMapping("/api/chat/history")
     @ResponseBody
     public List<ChatMessage> getHistory() {
-    return chatRepository.findAll();
+        return chatRepository.findAll();
     }
 }
